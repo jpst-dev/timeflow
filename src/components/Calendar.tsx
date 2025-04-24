@@ -32,6 +32,8 @@ import { EditTimeBlockModal } from "./EditTimeBlockModal";
 import { NewTimeBlockModal } from "./NewTimeBlockModal";
 import { addTimeBlock, updateTimeBlock } from "../store/slices/timeBlocksSlice";
 import { v4 as uuidv4 } from "uuid";
+import { CalendarIntegrations } from "./CalendarIntegrations";
+import { calendarService } from "../services/calendar";
 
 // Localizer com date-fns
 const locales = {
@@ -127,7 +129,7 @@ const CustomToolbar = ({
           onClick={() => onNavigate("TODAY")}
           variant="outline"
           size="sm"
-          className="font-semibold"
+          className="font-semibold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           <CalendarDays className="w-4 h-4 mr-1.5" />
           <span>Hoje</span>
@@ -137,7 +139,7 @@ const CustomToolbar = ({
             onClick={() => onNavigate("PREV")}
             variant="outline"
             size="icon"
-            className="w-8 h-8 border-r-0 rounded-r-none"
+            className="w-8 h-8 border-r-0 rounded-r-none hover:bg-blue-50/50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400"
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
@@ -145,7 +147,7 @@ const CustomToolbar = ({
             onClick={() => onNavigate("NEXT")}
             variant="outline"
             size="icon"
-            className="w-8 h-8 rounded-l-none"
+            className="w-8 h-8 rounded-l-none hover:bg-blue-50/50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400"
           >
             <ChevronRight className="w-4 h-4" />
           </Button>
@@ -172,6 +174,9 @@ const CustomToolbar = ({
               size="sm"
               className={cn(
                 "w-20",
+                view === viewOption
+                  ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+                  : "hover:bg-blue-50/50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400",
                 isFirst && availableViews.length > 1
                   ? "rounded-r-none border-r-0"
                   : "",
@@ -208,6 +213,7 @@ export const Calendar = () => {
   const filters = useAppSelector((state) => state.filters);
   const [isDark, setIsDark] = useState(false);
   const dispatch = useAppDispatch();
+  const [externalEvents, setExternalEvents] = useState<TimeBlock[]>([]);
 
   useEffect(() => {
     // Detectar modo escuro
@@ -379,15 +385,39 @@ export const Calendar = () => {
     [dispatch]
   );
 
-  const eventsForCalendar = useMemo(
-    () =>
-      filteredEvents.map((ev: TimeBlock) => ({
-        ...ev,
-        start: new Date(ev.start),
-        end: new Date(ev.end),
-      })),
-    [filteredEvents]
-  ) as CalendarEventType[];
+  // Função para carregar eventos externos
+  const loadExternalEvents = useCallback(async () => {
+    try {
+      const startDate = new Date(currentDate);
+      startDate.setDate(startDate.getDate() - 7); // Uma semana antes
+      const endDate = new Date(currentDate);
+      endDate.setDate(endDate.getDate() + 7); // Uma semana depois
+
+      const googleEvents = await calendarService.fetchGoogleCalendarEvents(
+        startDate,
+        endDate
+      );
+      const timeBlocks = calendarService.convertToTimeBlocks(googleEvents);
+      setExternalEvents(timeBlocks);
+    } catch (error) {
+      console.error("Erro ao carregar eventos externos:", error);
+      toast.error("Falha ao carregar eventos externos");
+    }
+  }, [currentDate]);
+
+  // Carrega eventos externos quando a data muda
+  useEffect(() => {
+    loadExternalEvents();
+  }, [currentDate, loadExternalEvents]);
+
+  // Combina eventos locais com eventos externos
+  const allEvents = useMemo(() => {
+    return [...filteredEvents, ...externalEvents].map((block) => ({
+      ...block,
+      start: new Date(block.start),
+      end: new Date(block.end),
+    }));
+  }, [filteredEvents, externalEvents]);
 
   return (
     <div
@@ -402,20 +432,23 @@ export const Calendar = () => {
           <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
           Agenda
         </h2>
-        <Button
-          variant="default"
-          size="sm"
-          className="flex items-center gap-1"
-          onClick={() => handleOpenNewModal()}
-        >
-          <Plus className="w-4 h-4" />
-          <span>Adicionar Bloco</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <CalendarIntegrations />
+          <Button
+            variant="default"
+            size="sm"
+            className="flex items-center gap-1"
+            onClick={() => handleOpenNewModal()}
+          >
+            <Plus className="w-4 h-4" />
+            <span>Adicionar Bloco</span>
+          </Button>
+        </div>
       </div>
 
       <DnDCalendar
         localizer={localizer}
-        events={eventsForCalendar}
+        events={allEvents}
         defaultView={Views.WEEK}
         views={[Views.WEEK, Views.DAY]}
         view={currentView}

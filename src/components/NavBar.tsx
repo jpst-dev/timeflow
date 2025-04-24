@@ -101,7 +101,7 @@ const NavBar = () => {
                   asChild
                   className={cn(
                     "flex items-center px-3 py-2 text-sm font-medium rounded-md",
-                    "text-muted-foreground hover:text-accent-foreground"
+                    "text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/20"
                   )}
                 >
                   <Link to={item.path}>
@@ -153,9 +153,8 @@ const NavBar = () => {
               <Button
                 variant="ghost"
                 size="icon"
+                className="sm:hidden hover:bg-blue-50/50 dark:hover:bg-blue-900/20"
                 onClick={toggleMobileMenu}
-                aria-expanded={mobileMenuOpen}
-                aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? (
                   <X className="w-5 h-5" />

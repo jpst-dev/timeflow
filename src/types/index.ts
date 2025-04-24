@@ -1,12 +1,19 @@
-export type Category = "clt" | "pj" | "estudo" | "pessoal" | "social";
+export type Category =
+  | "clt"
+  | "pj"
+  | "estudo"
+  | "pessoal"
+  | "social"
+  | "external";
 
 export interface TimeBlock {
   id: string;
   title: string;
   start: string;
   end: string;
-  category: Category;
   description?: string;
+  category: Category;
+  source?: "google" | "outlook" | "apple";
 }
 
 export interface CategoryInfo {
